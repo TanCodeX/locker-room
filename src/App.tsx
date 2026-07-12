@@ -305,7 +305,7 @@ export default function App() {
     
     const link = document.createElement("a");
     link.href = pepTalk.audio;
-    link.download = `lockerroom_${selectedPersona}_hype.wav`;
+    link.download = `lockerroom_${selectedPersona}_hype.mp3`;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
