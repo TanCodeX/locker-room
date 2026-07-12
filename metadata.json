@@ -1,0 +1,6 @@
+{
+  "name": "Locker Room",
+  "description": "AI-powered sports and motivational pep talk generator with immersive coach personas and custom audio playback.",
+  "requestFramePermissions": ["microphone"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

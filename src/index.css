@@ -1,0 +1,76 @@
+@import url('https://fonts.googleapis.com/css2?family=Anton&family=Inter:wght@400;500;600;700&family=Space+Mono:wght@400;700&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Anton", sans-serif;
+  --font-mono: "Space Mono", monospace;
+
+  --color-brand-bg: #111111;
+  --color-brand-primary: #e7d192;
+  --color-brand-accent-amber: #c59728;
+  --color-brand-accent-pink: #d881a7;
+  --color-brand-accent-red: #c93638;
+  --color-brand-accent-blue: #6d8ac9;
+}
+
+/* Custom Mechanical Press effect */
+.mechanical-press {
+  transition: transform 0.1s ease, box-shadow 0.1s ease;
+}
+.mechanical-press:active {
+  transform: translate(4px, 4px) !important;
+  box-shadow: none !important;
+}
+
+/* Base custom glow animations */
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.animate-fade-in-up {
+  animation: fadeInUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes breathe {
+  0% { transform: scale(1); opacity: 0.6; }
+  100% { transform: scale(1.15); opacity: 1; }
+}
+
+.animate-breathe {
+  animation: breathe 2s ease-in-out infinite alternate;
+}
+
+@keyframes pulseSelected {
+  0% { transform: scale(1); }
+  100% { transform: scale(1.02); }
+}
+
+.pulse-selected {
+  animation: pulseSelected 1.5s ease-in-out infinite alternate;
+}
+
+@keyframes shimmerEffect {
+  0% { transform: rotate(30deg) translate(-100%, -100%); }
+  100% { transform: rotate(30deg) translate(100%, 100%); }
+}
+
+.animate-shimmer {
+  position: relative;
+  overflow: hidden;
+}
+
+.animate-shimmer::after {
+  content: '';
+  position: absolute;
+  top: -150%;
+  left: -150%;
+  width: 400%;
+  height: 400%;
+  background: linear-gradient(to right, transparent, rgba(255,255,255,0.15) 50%, transparent);
+  transform: rotate(30deg) translate(-100%, -100%);
+  animation: shimmerEffect 4s infinite;
+  pointer-events: none;
+}
+
