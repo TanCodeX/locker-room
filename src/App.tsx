@@ -357,12 +357,6 @@ export default function App() {
       {/* Top Navbar */}
       <header className="bg-brand-bg/95 border-b border-outline-variant flex justify-between items-center px-6 md:px-12 py-4 sticky top-0 z-50">
         <div className="flex items-center gap-4">
-          <img 
-            alt="Locker Room Logo" 
-            className="h-10 w-10 object-contain rounded-none" 
-            src="https://lh3.googleusercontent.com/aida-public/AB6AXuBYVAQUIGofohxdq_oWxlrhLsA41Q5ZzE_j48HE6vKqQfP4WrRCJSzU0U59DwQQlKh1eCZdD90Lns5cANBPKde_FgbGNyWajNNvnCcBEEZxq7_QUIYujY_5O8LQ2_ujTYzZuVucSf85oXVIXHFORN_4clOOw3NtoCv3jXrYeV9beMVfFoy8eJDQnzY8O2tQasulVdvzFTI1F1yu1mLj7cm_d4egQwJTGQQBj-mBdt4xrXB_VFYMjF_fBe2KzFWjWrt2aua2muVZ4uE"
-            referrerPolicy="no-referrer"
-          />
           <h1 className="font-display text-2xl md:text-3xl text-brand-primary tracking-tighter uppercase">LOCKER ROOM</h1>
         </div>
         <div className="flex items-center gap-3">
@@ -380,7 +374,7 @@ export default function App() {
           <h2 className="font-display text-4xl md:text-7xl uppercase tracking-tighter leading-tight drop-shadow-md text-white">
             STEP INTO THE LOCKER ROOM
           </h2>
-          <p className="mt-4 text-on-surface-variant font-sans text-base md:text-lg max-w-xl">
+          <p className="mt-4 text-[#888] font-sans text-base md:text-lg max-w-xl">
             Select your intent, choose your persona, and get the exact hype you need before you step onto the field.
           </p>
         </section>
@@ -537,7 +531,7 @@ export default function App() {
           <button
             onClick={handleGenerate}
             disabled={isGenerating}
-            className="w-full md:w-auto min-w-[320px] px-12 py-5 bg-brand-primary text-brand-bg font-display text-3xl uppercase border-2 border-[#1a1a1a] hover:opacity-90 transition-opacity shadow-[4px_4px_0px_0px_#261a00] cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+            className="w-full md:w-auto min-w-[400px] px-16 py-6 bg-[#ffe4a0] text-[#1a1a1a] font-display text-5xl uppercase tracking-wide border-4 border-[#1a1a1a] hover:bg-[#ffd570] transition-colors shadow-[10px_10px_0px_0px_#524a3a] cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {isGenerating ? loadingPhrases[loadingStep] : "GENERATE PEP TALK"}
           </button>
