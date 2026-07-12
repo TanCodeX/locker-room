@@ -3,6 +3,7 @@ import path from "path";
 import { createServer as createViteServer } from "vite";
 import dotenv from "dotenv";
 import { getPersona } from "./personas";
+import { GoogleGenAI, Modality } from "@google/genai";
 
 dotenv.config();
 
@@ -11,6 +12,26 @@ const PORT = 3000;
 
 // Support JSON parsing
 app.use(express.json());
+
+function pcmToWav(pcmBuffer: Buffer, sampleRate: number = 24000): Buffer {
+  const header = Buffer.alloc(44);
+  const dataLength = pcmBuffer.length;
+  const fileLength = dataLength + 36;
+  header.write("RIFF", 0);
+  header.writeUInt32LE(fileLength, 4);
+  header.write("WAVE", 8);
+  header.write("fmt ", 12);
+  header.writeUInt32LE(16, 16);
+  header.writeUInt16LE(1, 20);
+  header.writeUInt16LE(1, 22);
+  header.writeUInt32LE(sampleRate, 24);
+  header.writeUInt32LE(sampleRate * 2, 28);
+  header.writeUInt16LE(2, 32);
+  header.writeUInt16LE(16, 34);
+  header.write("data", 36);
+  header.writeUInt32LE(dataLength, 40);
+  return Buffer.concat([header, pcmBuffer]);
+}
 
 async function writeSpeech(userInput: string, vibe: string): Promise<string> {
   const prompt = `You are ghostwriting a short pre-game locker-room pep talk.
@@ -62,7 +83,7 @@ explanation, no quotation marks wrapping the whole thing.`;
   return text.trim().slice(0, 2800);
 }
 
-async function performSpeech(text: string, voiceId: string): Promise<string> {
+async function performSpeech(text: string, voiceId: string): Promise<{ audioBase64: string, format: string }> {
   const res = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${voiceId}`, {
     method: "POST",
     headers: {
@@ -85,7 +106,7 @@ async function performSpeech(text: string, voiceId: string): Promise<string> {
   }
 
   const buffer = Buffer.from(await res.arrayBuffer());
-  return buffer.toString("base64");
+  return { audioBase64: buffer.toString("base64"), format: "audio/mpeg" };
 }
 
 // API endpoint to generate the pep talk
@@ -113,12 +134,46 @@ app.post("/api/peptalk", async (req, res) => {
     }
 
     const speechText = await writeSpeech(input, persona.vibe);
-    const audioBase64 = await performSpeech(speechText, persona.voiceId);
+    let audioDataUri = "";
+
+    try {
+      const { audioBase64, format } = await performSpeech(speechText, persona.voiceId);
+      audioDataUri = `data:${format};base64,${audioBase64}`;
+    } catch (err: any) {
+      console.warn("ElevenLabs TTS failed, falling back to Gemini TTS. Error:", err.message);
+      
+      const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY as string });
+      
+      let voiceName = "Kore";
+      if (personaId === "bestie") voiceName = "Puck";
+      if (personaId === "narrator") voiceName = "Zephyr";
+      if (personaId === "sergeant") voiceName = "Fenrir";
+
+      const ttsResponse = await ai.models.generateContent({
+        model: "gemini-3.1-flash-tts-preview",
+        contents: [{ parts: [{ text: speechText }] }],
+        config: {
+          responseModalities: [Modality.AUDIO],
+          speechConfig: {
+            voiceConfig: {
+              prebuiltVoiceConfig: { voiceName },
+            },
+          },
+        },
+      });
+
+      const rawPcmBase64 = ttsResponse.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data;
+      if (rawPcmBase64) {
+        const pcmBuffer = Buffer.from(rawPcmBase64, "base64");
+        const wavBuffer = pcmToWav(pcmBuffer, 24000);
+        audioDataUri = `data:audio/wav;base64,${wavBuffer.toString("base64")}`;
+      }
+    }
 
     // Ensure the frontend receives the correct base64 data URI format
     res.json({
       text: speechText,
-      audio: `data:audio/mpeg;base64,${audioBase64}`,
+      audio: audioDataUri,
     });
   } catch (error: any) {
     console.error("Pep talk generation error:", error);

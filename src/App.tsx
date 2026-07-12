@@ -271,10 +271,15 @@ export default function App() {
 
     if (isUsingSpeechFallback) {
       if (isPlaying) {
-        window.speechSynthesis.cancel();
+        window.speechSynthesis.pause();
         setIsPlaying(false);
       } else {
-        speakWithNativeFallback(pepTalk.text);
+        if (window.speechSynthesis.paused) {
+          window.speechSynthesis.resume();
+          setIsPlaying(true);
+        } else {
+          speakWithNativeFallback(pepTalk.text);
+        }
       }
     } else if (audioRef.current) {
       if (isPlaying) {
@@ -540,20 +545,16 @@ export default function App() {
         {/* Hidden internal audio element */}
         {pepTalk?.audio && (
           <audio
-            ref={(el) => {
-              audioRef.current = el;
-              if (el) {
-                el.onplay = () => setIsPlaying(true);
-                el.onpause = () => setIsPlaying(false);
-                el.onended = () => {
-                  setIsPlaying(false);
-                  setCurrentTime(0);
-                };
-                el.ontimeupdate = () => setCurrentTime(el.currentTime);
-                el.ondurationchange = () => setDuration(el.duration);
-              }
-            }}
+            ref={audioRef}
             src={pepTalk.audio}
+            onPlay={() => setIsPlaying(true)}
+            onPause={() => setIsPlaying(false)}
+            onEnded={() => {
+              setIsPlaying(false);
+              setCurrentTime(0);
+            }}
+            onTimeUpdate={(e) => setCurrentTime(e.currentTarget.currentTime)}
+            onDurationChange={(e) => setDuration(e.currentTarget.duration)}
           />
         )}
 
@@ -613,7 +614,7 @@ export default function App() {
                       />
                       <button
                         onClick={handlePlayPause}
-                        className={`h-16 w-16 rounded-full flex items-center justify-center transition-all shadow-md cursor-pointer ${
+                        className={`relative z-10 h-16 w-16 rounded-full flex items-center justify-center transition-all shadow-md cursor-pointer ${
                           isPlaying 
                             ? "bg-red-700 hover:bg-red-600 text-white" 
                             : "bg-[#ffe2ab] hover:bg-[#ffeecb] text-brand-bg"
