@@ -25,6 +25,7 @@ import {
 interface PepTalkResponse {
   text: string;
   audio: string | null; // Base64 encoded WAV data URL
+  artSvg?: string; // Custom Cassette Art SVG
 }
 
 export default function App() {
@@ -56,6 +57,12 @@ export default function App() {
 
   // Audio generation fallback status (uses Web Speech API if server-side TTS fails)
   const [isUsingSpeechFallback, setIsUsingSpeechFallback] = useState(false);
+
+  // Web Audio API Refs
+  const audioContextRef = useRef<AudioContext | null>(null);
+  const analyserRef = useRef<AnalyserNode | null>(null);
+  const sourceRef = useRef<MediaElementAudioSourceNode | null>(null);
+  const animationRef = useRef<number | null>(null);
 
   // Immersive loading messages
   const loadingPhrases = [
@@ -104,22 +111,67 @@ export default function App() {
     }
   }, []);
 
-  // Equalizer animation effect
-  useEffect(() => {
-    let intervalId: any = null;
-    if (isPlaying) {
-      intervalId = setInterval(() => {
-        setEqualizerBars(
-          Array.from({ length: 36 }, () => Math.floor(Math.random() * 85) + 15)
-        );
-      }, 100);
-    } else {
-      setEqualizerBars(Array(36).fill(10));
+  // Real-time Web Audio API Equalizer animation loop
+  const drawEqualizer = () => {
+    if (!analyserRef.current) return;
+    
+    const dataArray = new Uint8Array(analyserRef.current.frequencyBinCount);
+    analyserRef.current.getByteFrequencyData(dataArray);
+    
+    const newBars = [];
+    // Map frequency bins to our 36 UI bars (skip the very lowest/highest frequencies for better visual)
+    for (let i = 2; i < 38; i++) {
+      // getByteFrequencyData returns 0-255. Map to 10-100%
+      const value = Math.max(10, (dataArray[i] / 255) * 100);
+      newBars.push(value);
     }
+    setEqualizerBars(newBars);
+    
+    if (isPlaying) {
+      animationRef.current = requestAnimationFrame(drawEqualizer);
+    }
+  };
+
+  useEffect(() => {
+    if (isPlaying && audioRef.current && !isUsingSpeechFallback) {
+      // Ensure AudioContext is initialized (must happen after user interaction)
+      if (!audioContextRef.current) {
+        const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
+        if (AudioContextClass) {
+          audioContextRef.current = new AudioContextClass();
+          analyserRef.current = audioContextRef.current.createAnalyser();
+          analyserRef.current.fftSize = 128; // gives 64 frequency bins
+          
+          sourceRef.current = audioContextRef.current.createMediaElementSource(audioRef.current);
+          sourceRef.current.connect(analyserRef.current);
+          analyserRef.current.connect(audioContextRef.current.destination);
+        }
+      }
+
+      if (audioContextRef.current?.state === "suspended") {
+        audioContextRef.current.resume();
+      }
+
+      animationRef.current = requestAnimationFrame(drawEqualizer);
+    } else {
+      if (animationRef.current) {
+        cancelAnimationFrame(animationRef.current);
+      }
+      // If using fallback or stopped, use a random jitter or reset
+      if (isPlaying && isUsingSpeechFallback) {
+        const intervalId = setInterval(() => {
+          setEqualizerBars(Array.from({ length: 36 }, () => Math.floor(Math.random() * 85) + 15));
+        }, 100);
+        return () => clearInterval(intervalId);
+      } else {
+        setEqualizerBars(Array(36).fill(10));
+      }
+    }
+    
     return () => {
-      if (intervalId) clearInterval(intervalId);
+      if (animationRef.current) cancelAnimationFrame(animationRef.current);
     };
-  }, [isPlaying]);
+  }, [isPlaying, isUsingSpeechFallback]);
 
   // Loading phrasing rotator
   useEffect(() => {
@@ -316,13 +368,12 @@ export default function App() {
     document.body.removeChild(link);
   };
 
-  // Example scenario templates to populate the input
+  // Example scenario templates to populate the input (Hackathon World Cup & Rivalry focus)
   const presets = [
-    { text: "A final-round job interview at my dream tech startup", label: "Job Interview" },
+    { text: "Playing our bitter rivals in the Sunday league championship", label: "Sunday League Rivalry" },
+    { text: "Watching my nation in the World Cup finals penalty shootout", label: "World Cup Penalties" },
+    { text: "Shipping my passion side-project to Product Hunt at midnight", label: "Midnight Launch" },
     { text: "Stepping onto the platform for a 3-plate Squat personal record", label: "Squat PR" },
-    { text: "Launching my new indie project live on Product Hunt right now", label: "Product Launch" },
-    { text: "Standing up to speak at a public conference with 500+ attendees", label: "Public Speaking" },
-    { text: "Proposing to my high-school sweetheart under the summer stars", label: "Proposing" },
   ];
 
   // Helper to get accent hex code for active visual states
@@ -375,7 +426,7 @@ export default function App() {
       <main className="max-w-[1200px] mx-auto w-full px-4 md:px-12 py-8 flex-grow">
         
         {/* Hero Section */}
-        <section className="text-center py-12 md:py-20 max-w-3xl mx-auto flex flex-col items-center">
+        <section className="text-center py-6 md:py-10 max-w-3xl mx-auto flex flex-col items-center">
           <h2 className="font-display text-4xl md:text-7xl uppercase tracking-tighter leading-tight drop-shadow-md text-white">
             STEP INTO THE LOCKER ROOM
           </h2>
@@ -414,7 +465,18 @@ export default function App() {
               </button>
             </div>
             
-            {/* Presets removed */}
+            {/* Presets */}
+            <div className="mt-4 flex flex-wrap gap-2">
+              {presets.map((p, idx) => (
+                <button
+                  key={idx}
+                  onClick={() => setIntent(p.text)}
+                  className="bg-[#1a1a1a] hover:bg-[#333] border border-[#333] text-xs font-mono text-[#888] hover:text-white px-3 py-1.5 transition-colors cursor-pointer"
+                >
+                  + {p.label}
+                </button>
+              ))}
+            </div>
           </div>
 
           {/* Right Column: Persona Grid */}
@@ -685,6 +747,16 @@ export default function App() {
                 className="bg-[#1c1b1b] border-2 border-[#333] p-6 md:p-8 relative"
                 style={{ borderRadius: 0 }}
               >
+                {/* Cassette Art SVG (Generated by Gemini) */}
+                {pepTalk.artSvg && (
+                  <div className="mb-6 flex justify-center">
+                    <div 
+                      className="border-2 border-[#333] bg-[#1a1a1a] shadow-[8px_8px_0px_0px_#111] overflow-hidden"
+                      dangerouslySetInnerHTML={{ __html: pepTalk.artSvg }}
+                      style={{ width: "100%", maxWidth: "400px" }}
+                    />
+                  </div>
+                )}
                 {/* Blackboard header tag */}
                 <div className="absolute top-0 left-0 bg-[#222] border-r-2 border-b-2 border-[#333] px-3 py-1 font-mono text-[10px] text-brand-primary uppercase">
                   PLAYBOOK SPEECH TAPE

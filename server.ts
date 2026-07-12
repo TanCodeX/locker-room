@@ -83,6 +83,48 @@ explanation, no quotation marks wrapping the whole thing.`;
   return text.trim().slice(0, 2800);
 }
 
+async function generateCassetteArtSVG(intent: string, color: string): Promise<string> {
+  const prompt = `You are an expert SVG artist. Create a completely valid, standalone, highly stylized, retro cassette tape label SVG.
+The artwork should represent this intense scenario/passion: "${intent}".
+Use a strict retro-synthwave or vintage aesthetic. The primary accent color must be "${color}".
+Include stylized vector shapes, lightning bolts, or minimalist abstract sports/hustle elements.
+The SVG dimensions should be 400x150. Use a dark background like #1a1a1a.
+CRITICAL: Do not wrap the SVG in markdown backticks. Return ONLY the raw <svg>...</svg> code starting with <svg> and ending with </svg>. Do not include any HTML or explanations.`;
+
+  const res = await fetch(
+    "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent",
+    {
+      method: "POST",
+      headers: {
+        "x-goog-api-key": process.env.GEMINI_API_KEY as string,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        contents: [{ parts: [{ text: prompt }] }],
+      }),
+    }
+  );
+
+  if (!res.ok) {
+    console.error("SVG Gen error:", await res.text());
+    return ""; // fail silently and just don't show the art if it fails
+  }
+
+  const data = await res.json();
+  const text: string | undefined = data?.candidates?.[0]?.content?.parts?.[0]?.text;
+  if (!text) return "";
+  
+  // Clean up potential markdown formatting just in case
+  let svg = text.trim();
+  if (svg.startsWith("\`\`\`xml")) svg = svg.replace("\`\`\`xml", "");
+  if (svg.startsWith("\`\`\`svg")) svg = svg.replace("\`\`\`svg", "");
+  if (svg.startsWith("\`\`\`html")) svg = svg.replace("\`\`\`html", "");
+  if (svg.startsWith("\`\`\`")) svg = svg.replace("\`\`\`", "");
+  if (svg.endsWith("\`\`\`")) svg = svg.slice(0, -3);
+  
+  return svg.trim();
+}
+
 async function performSpeech(text: string, voiceId: string): Promise<{ audioBase64: string, format: string }> {
   const res = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${voiceId}`, {
     method: "POST",
@@ -133,7 +175,18 @@ app.post("/api/peptalk", async (req, res) => {
       });
     }
 
-    const speechText = await writeSpeech(input, persona.vibe);
+    // Get accent color for the SVG
+    let personaColor = "#fbbc00"; // default coach amber
+    if (personaId === "bestie") personaColor = "#ffb0d0";
+    if (personaId === "narrator") personaColor = "#ff4e50";
+    if (personaId === "sergeant") personaColor = "#abc7ff";
+
+    // Run both text generation and SVG art generation concurrently
+    const [speechText, artSvg] = await Promise.all([
+      writeSpeech(input, persona.vibe),
+      generateCassetteArtSVG(input, personaColor)
+    ]);
+    
     let audioDataUri = "";
 
     try {
@@ -170,10 +223,11 @@ app.post("/api/peptalk", async (req, res) => {
       }
     }
 
-    // Ensure the frontend receives the correct base64 data URI format
+    // Ensure the frontend receives the correct base64 data URI format and art SVG
     res.json({
       text: speechText,
       audio: audioDataUri,
+      artSvg: artSvg
     });
   } catch (error: any) {
     console.error("Pep talk generation error:", error);
