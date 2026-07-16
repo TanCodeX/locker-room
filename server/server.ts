@@ -237,7 +237,9 @@ app.post("/api/peptalk", async (req, res) => {
 // Configure Vite middleware or serve static build
 async function setupVite() {
   if (process.env.NODE_ENV !== "production") {
-    const viteModule = await import("vite");
+    // Hide 'vite' import from Vercel's bundler (nft)
+    const viteName = "vi" + "te";
+    const viteModule = await import(viteName);
     const vite = await viteModule.createServer({
       server: { middlewareMode: true },
       appType: "spa",
