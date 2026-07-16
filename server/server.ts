@@ -252,8 +252,14 @@ async function setupVite() {
   }
 }
 
-setupVite().then(() => {
-  app.listen(PORT, "0.0.0.0", () => {
-    console.log(`Locker Room server running on http://localhost:${PORT}`);
+// Only run the dev/static server if NOT on Vercel
+if (!process.env.VERCEL) {
+  setupVite().then(() => {
+    app.listen(PORT, "0.0.0.0", () => {
+      console.log(`Locker Room server running on http://localhost:${PORT}`);
+    });
   });
-});
+}
+
+// Export the Express app for Vercel Serverless Functions
+export default app;
