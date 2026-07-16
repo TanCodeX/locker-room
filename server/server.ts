@@ -1,7 +1,7 @@
 import express from "express";
 import path from "path";
 import dotenv from "dotenv";
-import { getPersona } from "./personas";
+import { getPersona } from "./personas.js";
 import { GoogleGenAI, Modality } from "@google/genai";
 
 dotenv.config();
