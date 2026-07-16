@@ -1,6 +1,5 @@
 import express from "express";
 import path from "path";
-import { createServer as createViteServer } from "vite";
 import dotenv from "dotenv";
 import { getPersona } from "./personas";
 import { GoogleGenAI, Modality } from "@google/genai";
@@ -238,7 +237,8 @@ app.post("/api/peptalk", async (req, res) => {
 // Configure Vite middleware or serve static build
 async function setupVite() {
   if (process.env.NODE_ENV !== "production") {
-    const vite = await createViteServer({
+    const viteModule = await import("vite");
+    const vite = await viteModule.createServer({
       server: { middlewareMode: true },
       appType: "spa",
     });
